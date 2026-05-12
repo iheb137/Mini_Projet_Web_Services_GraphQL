@@ -1,0 +1,149 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [auth, vehicles, traffic, incidents, notifications, gateway]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set working directory
+        id: config
+        run: |
+          if [ "${{ matrix.service }}" = "gateway" ]; then
+            echo "path=gateway" >> $GITHUB_OUTPUT
+          else
+            echo "path=services/${{ matrix.service }}" >> $GITHUB_OUTPUT
+          fi
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.config.outputs.path }}/node_modules
+          key: ${{ runner.os }}-node-${{ matrix.service }}-${{ hashFiles(format('{0}/package-lock.json', steps.config.outputs.path)) }}
+          restore-keys: |
+            ${{ runner.os }}-node-${{ matrix.service }}-
+      - name: Install dependencies
+        working-directory: ${{ steps.config.outputs.path }}
+        run: npm ci || npm install # Fallback if package-lock is missing
+      - name: Lint
+        working-directory: ${{ steps.config.outputs.path }}
+        run: npm run lint --if-present
+      - name: Test Coverage
+        working-directory: ${{ steps.config.outputs.path }}
+        run: npm run test:cov --if-present
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.service }}
+          path: ${{ steps.config.outputs.path }}/coverage
+          retention-days: 7
+
+  integration-test:
+    needs: lint-and-test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        working-directory: gateway
+        run: npm ci || npm install
+      - name: Run E2E Tests
+        working-directory: gateway
+        env:
+          JWT_SECRET: test_secret
+          DATABASE_URL_AUTH: postgresql://postgres:test@localhost:5432/test_db
+          DATABASE_URL_VEHICLES: postgresql://postgres:test@localhost:5432/test_db
+          DATABASE_URL_TRAFFIC: postgresql://postgres:test@localhost:5432/test_db
+          DATABASE_URL_INCIDENTS: postgresql://postgres:test@localhost:5432/test_db
+          DATABASE_URL_NOTIFICATIONS: postgresql://postgres:test@localhost:5432/test_db
+        run: npm run test:e2e --if-present
+
+  build-docker:
+    needs: [lint-and-test]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      
+      - name: Build and push auth
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/auth
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/urban-traffic-auth:latest
+          
+      - name: Build and push vehicles
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/vehicles
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/urban-traffic-vehicles:latest
+          
+      - name: Build and push traffic
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/traffic
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/urban-traffic-traffic:latest
+          
+      - name: Build and push incidents
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/incidents
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/urban-traffic-incidents:latest
+          
+      - name: Build and push notifications
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/notifications
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/urban-traffic-notifications:latest
+          
+      - name: Build and push gateway
+        uses: docker/build-push-action@v5
+        with:
+          context: ./gateway
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/urban-traffic-gateway:latest
+          
+      - name: Build and push frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/urban-traffic-frontend:latest

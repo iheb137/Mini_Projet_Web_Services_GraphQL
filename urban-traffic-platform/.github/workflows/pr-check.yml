@@ -1,0 +1,58 @@
+name: PR Checks
+
+on:
+  pull_request:
+
+jobs:
+  validate-docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check docker-compose syntax
+        run: docker-compose config -q
+
+  validate-typescript:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [auth, vehicles, traffic, incidents, notifications, gateway, frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set working directory
+        id: config
+        run: |
+          if [ "${{ matrix.service }}" = "gateway" ] || [ "${{ matrix.service }}" = "frontend" ]; then
+            echo "path=${{ matrix.service }}" >> $GITHUB_OUTPUT
+          else
+            echo "path=services/${{ matrix.service }}" >> $GITHUB_OUTPUT
+          fi
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        working-directory: ${{ steps.config.outputs.path }}
+        run: npm ci || npm install
+      - name: TypeScript Compile Check
+        working-directory: ${{ steps.config.outputs.path }}
+        run: npx tsc --noEmit
+
+  pr-comment:
+    needs: [validate-docker, validate-typescript]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add PR Comment
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const success = '${{ needs.validate-docker.result }}' === 'success' && '${{ needs.validate-typescript.result }}' === 'success';
+            const body = success 
+              ? '✅ All PR checks passed! Docker logic is valid and TypeScript compiles successfully.' 
+              : '❌ Some PR checks failed. Please review the Docker Compose config and TypeScript compiler errors.';
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            })

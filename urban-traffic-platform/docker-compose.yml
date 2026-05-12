@@ -1,0 +1,117 @@
+services:
+  # --- API GATEWAY ---
+  gateway:
+    build: ./services/gateway
+    ports:
+      - "3000:3000"
+    depends_on:
+      - auth
+      - vehicles
+      - traffic
+      - incidents
+      - notifications
+    env_file:
+      - ./services/gateway/.env.example
+
+  # --- AUTH SERVICE ---
+  db-auth:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: auth_user
+      POSTGRES_PASSWORD: auth_password
+      POSTGRES_DB: auth_db
+    volumes:
+      - pg-auth:/var/lib/postgresql/data
+  auth:
+    build: ./services/auth
+    ports:
+      - "3001:3001"
+    depends_on:
+      - db-auth
+    env_file:
+      - ./services/auth/.env.example
+
+  # --- VEHICLES SERVICE ---
+  db-vehicles:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: vehicles_user
+      POSTGRES_PASSWORD: vehicles_password
+      POSTGRES_DB: vehicles_db
+    volumes:
+      - pg-vehicles:/var/lib/postgresql/data
+  vehicles:
+    build: ./services/vehicles
+    ports:
+      - "3002:3002"
+    depends_on:
+      - db-vehicles
+    env_file:
+      - ./services/vehicles/.env.example
+
+  # --- TRAFFIC SERVICE ---
+  db-traffic:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: traffic_user
+      POSTGRES_PASSWORD: traffic_password
+      POSTGRES_DB: traffic_db
+    volumes:
+      - pg-traffic:/var/lib/postgresql/data
+  traffic:
+    build: ./services/traffic
+    ports:
+      - "3003:3003"
+    depends_on:
+      - db-traffic
+    env_file:
+      - ./services/traffic/.env.example
+
+  # --- INCIDENTS SERVICE ---
+  db-incidents:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: incidents_user
+      POSTGRES_PASSWORD: incidents_password
+      POSTGRES_DB: incidents_db
+    volumes:
+      - pg-incidents:/var/lib/postgresql/data
+  incidents:
+    build: ./services/incidents
+    ports:
+      - "3004:3004"
+    depends_on:
+      - db-incidents
+    env_file:
+      - ./services/incidents/.env.example
+
+  # --- NOTIFICATIONS SERVICE ---
+  db-notifications:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: notif_user
+      POSTGRES_PASSWORD: notif_password
+      POSTGRES_DB: notif_db
+    volumes:
+      - pg-notifications:/var/lib/postgresql/data
+  notifications:
+    build: ./services/notifications
+    ports:
+      - "3005:3005"
+    depends_on:
+      - db-notifications
+    env_file:
+      - ./services/notifications/.env.example
+
+  # --- FRONTEND ---
+  frontend:
+    build: ./frontend
+    ports:
+      - "3006:3000"
+
+volumes:
+  pg-auth:
+  pg-vehicles:
+  pg-traffic:
+  pg-incidents:
+  pg-notifications:
