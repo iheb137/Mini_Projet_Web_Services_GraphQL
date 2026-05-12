@@ -23,56 +23,48 @@ jobs:
         working-directory: urban-traffic-platform/services/gateway
         run: npm install --legacy-peer-deps
 
-      - name: Install dependencies - Auth
-        working-directory: urban-traffic-platform/services/auth
-        run: npm install --legacy-peer-deps
-
-      - name: Install dependencies - Vehicles
-        working-directory: urban-traffic-platform/services/vehicles
-        run: npm install --legacy-peer-deps
-
-      - name: Install dependencies - Traffic
-        working-directory: urban-traffic-platform/services/traffic
-        run: npm install --legacy-peer-deps
-
-      - name: Install dependencies - Incidents
-        working-directory: urban-traffic-platform/services/incidents
-        run: npm install --legacy-peer-deps
-
-      - name: Install dependencies - Notifications
-        working-directory: urban-traffic-platform/services/notifications
-        run: npm install --legacy-peer-deps
-
-      - name: Install dependencies - Frontend
-        working-directory: urban-traffic-platform/frontend
-        run: npm install --legacy-peer-deps
-
       - name: Build - Gateway
         working-directory: urban-traffic-platform/services/gateway
         run: npm run build
+
+      - name: Install dependencies - Auth
+        working-directory: urban-traffic-platform/services/auth
+        run: npm install --legacy-peer-deps
 
       - name: Build - Auth
         working-directory: urban-traffic-platform/services/auth
         run: npm run build
 
+      - name: Install dependencies - Vehicles
+        working-directory: urban-traffic-platform/services/vehicles
+        run: npm install --legacy-peer-deps
+
       - name: Build - Vehicles
         working-directory: urban-traffic-platform/services/vehicles
         run: npm run build
+
+      - name: Install dependencies - Traffic
+        working-directory: urban-traffic-platform/services/traffic
+        run: npm install --legacy-peer-deps
 
       - name: Build - Traffic
         working-directory: urban-traffic-platform/services/traffic
         run: npm run build
 
+      - name: Install dependencies - Incidents
+        working-directory: urban-traffic-platform/services/incidents
+        run: npm install --legacy-peer-deps
+
       - name: Build - Incidents
         working-directory: urban-traffic-platform/services/incidents
         run: npm run build
 
+      - name: Install dependencies - Notifications
+        working-directory: urban-traffic-platform/services/notifications
+        run: npm install --legacy-peer-deps
+
       - name: Build - Notifications
         working-directory: urban-traffic-platform/services/notifications
-        run: npm run build
-
-      - name: Build - Frontend
-        working-directory: urban-traffic-platform/frontend
         run: npm run build
 
   docker-build:
